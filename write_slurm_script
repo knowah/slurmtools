@@ -1,0 +1,60 @@
+#!/usr/bin/python3
+
+import argparse
+import sys
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-t", "--time",    required=True, help="Set a maximum runtime (slurm arg: --time)")
+parser.add_argument("-T", "--tasks",   required=True, help="Set a number of tasks to allocate (slurm arg: --ntasks)")
+parser.add_argument("-q", "--queue",   required=True, help="Jobqueue to use")
+parser.add_argument("-m", "--modules", default=None,  help="Semicolon-separated list of modules to load")
+parser.add_argument("-N", "--nodes",   required=False, default=1, type=int, help="Set a number of nodes to allocate (slurm arg: --nodes); default: 1")
+parser.add_argument("-M", "--mem",     required=False, help="Set a per-node memory (slurm arg: --mem)")
+parser.add_argument("-A", "--account", required=False, help="Run job using a particular account (slurm arg: -A)")
+parser.add_argument("scriptfile", type=str, help="Slurm script filename")
+parser.add_argument("command",    type=str, help="Command to run (use '-' for stdin)")
+args = parser.parse_args()
+
+options = {
+"--time":   args.time,
+"--ntasks": args.tasks,
+"--nodes":  args.nodes,
+"-p":       args.queue
+}
+
+if args.mem is not None:
+	options["--mem"] = args.mem
+
+if args.account is not None:
+	options["-A"] = args.account
+
+if args.command == "-":
+	std_input = sys.stdin.readlines()
+	args.command = "".join(std_input)
+
+with open(args.scriptfile, 'w') as sf:
+	sf.write("#!/bin/sh\n")
+	
+	for opt in options:
+		arg_sep = '=' if opt.startswith("--") else ' '
+		sf.write("#SBATCH {}{}{}\n".format(opt, arg_sep, options[opt]))
+	
+	sf.write('starttime=$(date +"%s")\n')
+	sf.write('echo $(date -u -d @${{starttime}})\n')
+	
+	full_opts_str = ' '.join(["{}{}{}".format(opt, '=' if opt.startswith("--") else ' ', options[opt]) for opt in options])
+	sf.write("echo \"options: {}\"\n".format())
+	sf.write('echo "$0"\n')
+	
+	if args.modules is not None:
+		mods = args.modules.split(';')
+		for mod in mods:
+			sf.write("module load {}\n".format(mod))
+
+
+	sf.write("\n{}\n".format(args.command))
+
+	sf.write('endtime=$(date +"%s")\n')
+	sf.write('echo $(date -u -d @${endtime})\n')
+	sf.write('echo "Time elapsed" $(date -u -d @$(($endtime-$starttime)) +"%T")\n')
+

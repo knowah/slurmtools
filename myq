@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# myq
+#
+# shows the current user's queued jobs in a decent format
+
+squeue -u $(id -un) -o "%.10i %.9P %.30j %.8u %.2t %.10M %.6D %R"

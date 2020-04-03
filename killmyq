@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# killmyq
+#
+# cancels all of the current user's queued/running slurm jobs.
+# useful if you discover an error in your scripts after submitting a large
+# number of jobs at once.
+
+squeue -h -u $(id -un) -o "%i" | xargs scancel
